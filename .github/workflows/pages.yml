@@ -1,0 +1,95 @@
+name: Deploy FormaWeave website
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - index.html
+      - .nojekyll
+      - web/**
+      - .github/workflows/pages.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: formaweave-pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out public website
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Verify public repository boundary
+        shell: python
+        run: |
+          import re
+          import subprocess
+          from pathlib import Path
+
+          allowed = {
+              'index.html', '.nojekyll', 'README.md', '.github/workflows/pages.yml',
+              'web/api.js', 'web/app.js', 'web/icons.js', 'web/modules.js',
+              'web/style-preview.js', 'web/styles.css', 'web/tokens.css',
+              'web/video-styles.json', 'web/video-presets.json',
+              'web/assets/favicon.svg', 'web/assets/pythagoras.svg',
+          }
+          tracked = set(subprocess.check_output(['git', 'ls-files', '-z']).decode().strip('\0').split('\0'))
+          if tracked != allowed:
+              raise SystemExit('Public repository file list does not match the static website allowlist.')
+          for name in tracked:
+              path = Path(name)
+              if path.is_symlink():
+                  raise SystemExit('Public website cannot contain symlinks.')
+              text = path.read_text(encoding='utf-8')
+              patterns = [
+                  r'\b(?:gh[pousr]_[A-Za-z0-9_]{25,}|github_pat_[A-Za-z0-9_]{30,})\b',
+                  r'\bsk-(?:proj-|ant-)?[A-Za-z0-9_-]{24,}\b',
+                  r'-----BEGIN (?:RSA |OPENSSH |EC )?PRIVATE KEY-----',
+              ]
+              if any(re.search(pattern, text) for pattern in patterns):
+                  raise SystemExit('Potential credential in public website: ' + name)
+
+      - name: Configure Pages
+        uses: actions/configure-pages@983d7736d9b0ae728b81ab479565c72886d7745b # v5
+
+      - name: Prepare public website
+        shell: bash
+        run: |
+          mkdir -p "${RUNNER_TEMP}/formaweave-pages"
+          cp -- index.html .nojekyll "${RUNNER_TEMP}/formaweave-pages/"
+          cp -R -- web "${RUNNER_TEMP}/formaweave-pages/web"
+          python - <<'PY'
+          from datetime import datetime, timezone
+          import json
+          import os
+          from pathlib import Path
+
+          site = Path(os.environ['RUNNER_TEMP']) / 'formaweave-pages'
+          (site / 'deployment.json').write_text(json.dumps({
+              'product': 'FormaWeave',
+              'repository': os.environ['GITHUB_REPOSITORY'],
+              'revision': os.environ['GITHUB_SHA'],
+              'deployed_at': datetime.now(timezone.utc).isoformat(),
+          }, indent=2), encoding='utf-8')
+          PY
+
+      - name: Upload website artifact
+        uses: actions/upload-pages-artifact@56afc609e74202658d3ffba0e8f6dda462b719fa # v3
+        with:
+          path: ${{ runner.temp }}/formaweave-pages
+
+      - name: Deploy website
+        id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

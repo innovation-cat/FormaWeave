@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#f7f8f3">
+  <meta name="description" content="FormaWeave 织象创作工作台：以代码构建，以模型生成，让想象成形。当前支持 Code2Video 动画创作。">
+  <title>FormaWeave · 织象 — 让想象成形</title>
+  <link rel="icon" type="image/svg+xml" href="./web/assets/favicon.svg">
+  <link rel="stylesheet" href="./web/styles.css">
+  <script type="module" src="./web/app.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主内容</a>
+  <aside class="sidebar" aria-label="主导航">
+    <a class="brand" href="#studio" aria-label="FormaWeave 首页"><span class="brand-symbol" data-icon="sparkles"></span><span class="brand-wordmark">Forma<span class="brand-x">Weave</span><small>织象 · STUDIO</small></span></a>
+    <button class="new-project" data-action="new"><span data-icon="plus"></span>开始新创作<span class="key-hint">N</span></button>
+    <div class="nav-caption">工作空间</div>
+    <nav class="workspace-nav">
+      <button class="nav-item active" data-view="studio" title="创作工作台"><span data-icon="grid"></span>创作工作台</button>
+      <button class="nav-item" data-view="projects" title="我的作品"><span data-icon="folder"></span>我的作品<span class="nav-count" id="project-count">0</span></button>
+      <button class="nav-item" data-view="templates" title="灵感模板"><span data-icon="sparkles"></span>灵感模板<span class="tiny-label">NEW</span></button>
+    </nav>
+    <div class="nav-caption engines-caption">创作引擎<span>5</span></div>
+    <nav id="engine-nav" aria-label="创作引擎"></nav>
+    <div class="sidebar-bottom">
+      <div class="future-card"><span class="future-glyph">✳</span><strong>Let imagination take form.</strong><p>以代码构建，以模型生成。</p><button data-action="roadmap">探索 FormaWeave <span>↗</span></button></div>
+      <button class="nav-item" data-action="help" title="使用指南"><span data-icon="book"></span>使用指南<span class="external-arrow">↗</span></button>
+      <button class="service-card" data-action="settings" title="连接设置"><span class="service-icon" data-icon="server"></span><span><strong id="sidebar-status">正在连接服务</strong><small id="sidebar-detail">本地计算 · 自由创作</small></span><i class="status-dot" id="sidebar-dot"></i></button>
+    </div>
+  </aside>
+  <div class="app-shell">
+    <header class="topbar"><div class="breadcrumbs"><span class="mobile-brand">Forma<span>Weave</span></span><span class="desktop-breadcrumb">工作空间</span><span class="crumb-slash">/</span><strong id="breadcrumb-title">创作工作台</strong></div><div class="header-actions"><span class="version-label">FORMAWEAVE STUDIO</span><button class="icon-button" data-action="help" aria-label="使用指南"><span data-icon="help"></span></button><button class="settings-button" data-action="settings" aria-label="连接设置"><span data-icon="sliders"></span><span>连接设置</span><i id="header-dot" class="status-dot"></i></button><span class="avatar" title="本地创作者">F</span></div></header>
+    <main id="main" tabindex="-1"></main>
+    <footer class="footer"><span><i></i> 以代码构建，以模型生成，让想象成形。</span><span>FormaWeave · Create across possibilities. <b>↗</b></span></footer>
+  </div>
+  <dialog id="settings-dialog" class="modal settings-modal" aria-labelledby="settings-title">
+    <form id="settings-form">
+      <div class="modal-header"><div><span class="eyebrow">CONNECT YOUR ENGINE</span><h2 id="settings-title">连接设置</h2></div><button type="button" class="icon-button" data-close="settings-dialog" aria-label="关闭"><span data-icon="close"></span></button></div>
+      <div class="modal-body">
+        <div class="settings-section-title">计算服务<span id="connection-status" class="subtle">未连接</span></div>
+        <label>后端地址<input name="endpoint" type="url" placeholder="http://127.0.0.1:8765" required></label>
+        <label>连接令牌 <span class="optional">本地同源访问自动配对</span><div class="input-action"><input name="token" type="password" autocomplete="off" placeholder="远程网页需粘贴本机连接令牌"><button type="button" data-action="copy-token" title="复制令牌"><span data-icon="copy"></span></button></div></label>
+        <p class="field-help">先双击 <code>Start-Code2X.cmd</code>。远程网页的令牌来自本机工作台或 <code>data/access-token.txt</code>；服务重启后需重新配对。</p>
+        <button type="button" class="secondary-button full" data-action="connect"><span data-icon="link"></span>连接计算服务</button>
+        <div id="runtime-checks" class="runtime-checks"></div><hr>
+        <div class="settings-section-title">模型服务<span class="subtle">密钥仅用于本次会话</span></div>
+        <div class="form-two"><label>接口类型<select name="provider"><option>OpenAI 兼容</option><option>Claude 原生</option><option>Gemini 原生</option></select></label><label>模型 ID<input name="model" required placeholder="服务商提供的模型 ID" list="model-list"><datalist id="model-list"></datalist></label></div>
+        <label>Base URL<input name="base_url" type="url" required placeholder="https://api.openai.com/v1"></label>
+        <label>API Key<div class="input-action"><input name="api_key" type="password" autocomplete="new-password" placeholder="输入你的 API Key（不保存到磁盘）"><button type="button" data-action="toggle-key" aria-label="显示或隐藏 API Key"><span data-icon="eye"></span></button></div></label>
+        <div class="form-two"><button type="button" class="secondary-button" data-action="models">获取模型列表</button><button type="button" class="secondary-button" data-action="test">测试模型 <span class="optional">小额调用</span></button></div>
+        <p id="model-status" class="field-help" role="status">生成使用你配置的模型服务，费用由服务商收取。</p>
+        <details class="advanced-settings speech-settings"><summary>配音服务<span data-icon="chevron"></span></summary>
+          <label>TTS 引擎<select name="tts_provider"><option value="windows">Windows 本地语音 · 无需密钥</option><option value="api">语音 API · OpenAI 兼容</option></select></label>
+          <p class="field-help">本地语音直接使用 Windows 已有的中文 / 英文声音，不安装系统组件。若缺少对应语言声音，可切换语音 API。语音服务与生成代码的模型分别配置。</p>
+          <label>配音语速<select name="tts_speed"><option value="0.75">0.75 × · 舒缓</option><option value="1">1 × · 标准</option><option value="1.25">1.25 × · 轻快</option><option value="1.5">1.5 × · 快速</option></select></label>
+          <div id="speech-api-fields" hidden>
+            <label>TTS Base URL<input name="tts_base_url" type="url" placeholder="https://你的语音服务/v1"></label>
+            <div class="form-two"><label>语音模型 ID<input name="tts_model" placeholder="服务商的 TTS 模型 ID"></label><label>TTS API Key<input name="tts_api_key" type="password" autocomplete="new-password" placeholder="语音接口密钥，仅当前会话"></label></div>
+            <div class="form-two"><label>中文声音 ID<input name="tts_voice_zh" placeholder="alloy"></label><label>英文声音 ID<input name="tts_voice_en" placeholder="alloy"></label></div>
+            <p class="field-help">接口需支持 POST /audio/speech，接收 model、input、voice、speed、response_format=wav 并返回音频。确认声音支持所选语言；沿用下方 HTTP 代理和超时设置。</p>
+          </div>
+        </details>
+        <details class="advanced-settings"><summary>高级设置<span data-icon="chevron"></span></summary>
+          <label>HTTP 代理<input name="proxy" placeholder="留空继承当前代理，或填 direct 强制直连"></label>
+          <div class="form-two"><label>渲染并行数<input name="workers" type="number" min="1" max="4" required></label><label>API 并发<input name="api_concurrency" type="number" min="1" max="4" required></label><label>响应超时（秒）<input name="api_timeout" type="number" min="30" max="3600" required></label><label>临时故障重试<input name="api_retries" type="number" min="0" max="5" required></label><label>代码修复次数<input name="retries" type="number" min="1" max="5" required></label></div>
+          <div class="settings-section-title budget-heading">单次输出预算<button type="button" class="budget-defaults" data-action="token-defaults">使用推荐预算</button></div>
+          <div class="form-two"><label>代码生成 Token<input name="max_tokens" type="number" min="1" step="1" list="token-presets" required></label><label>代码修复 Token<input name="repair_max_tokens" type="number" min="1" step="1" list="token-presets" required></label><label>大纲与分镜 Token<input name="planning_max_tokens" type="number" min="1" step="1" list="token-presets" required></label><label>模型单次输出上限<input name="model_output_limit" type="number" min="0" step="1" placeholder="0：由服务商校验" required></label><label>截断后最多续写<input name="max_continuations" type="number" min="0" max="8" step="1" required></label></div>
+          <datalist id="token-presets"><option value="8192"></option><option value="32768"></option><option value="65536"></option><option value="131072"></option><option value="262144"></option><option value="1000000"></option></datalist>
+          <p class="field-help">输出预算可继续调高，实际支持范围由模型和服务商决定。模型单次上限填 0 时不预先限制；仅在服务商明确返回上限时自动适配。输出截断会有限次数续写，仍未完成则保留部分内容。续写会增加调用次数和费用，设为 0 可关闭。推理 Token 也可能计入预算；长输出可相应调高响应超时。</p>
+        </details>
+      </div>
+      <div class="modal-footer"><span class="secure-note"><span data-icon="lock"></span>密钥不写入浏览器持久存储</span><button class="primary-button" type="submit">保存到本次会话<span data-icon="arrow"></span></button></div>
+    </form>
+  </dialog>
+  <dialog id="info-dialog" class="modal info-modal"><div class="modal-header"><h2 id="info-title"></h2><button class="icon-button" data-close="info-dialog" aria-label="关闭"><span data-icon="close"></span></button></div><div id="info-body" class="modal-body"></div></dialog>
+  <div id="toast-region" class="toast-region" aria-live="polite"></div>
+</body>
+</html>

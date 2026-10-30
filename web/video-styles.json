@@ -1,0 +1,26 @@
+{
+  "version": 1,
+  "styles": [
+    {
+      "id": "math", "name": "数学之美",
+      "prompt": "深色森林绿背景，暖金色数学公式，青绿色几何图形，清晰、直观的数学动画",
+      "font": "Microsoft YaHei", "title_size": 28, "body_size": 22,
+      "stroke_min": 1.8, "stroke_max": 3.5, "decoration": "none",
+      "palette": {"background":"#25352F","foreground":"#F3EFE3","muted":"#ACBCB0","primary":"#D8BD7C","secondary":"#73BBA7","tertiary":"#B5A18B","positive":"#8EC49B","negative":"#D68B80","grid":"#40594C"}
+    },
+    {
+      "id": "blueprint", "name": "蓝图解析",
+      "prompt": "浅蓝灰色背景，工程蓝图风格，细线结构图，蓝色强调色，标注简明，逻辑清晰",
+      "font": "Microsoft YaHei", "title_size": 28, "body_size": 22,
+      "stroke_min": 1.0, "stroke_max": 2.2, "decoration": "grid",
+      "palette": {"background":"#E9EFF5","foreground":"#263F56","muted":"#60788D","primary":"#356DAD","secondary":"#568C9C","tertiary":"#9B7B59","positive":"#447A65","negative":"#AA5862","grid":"#CAD7E4"}
+    },
+    {
+      "id": "minimal", "name": "极简叙事",
+      "prompt": "温暖米白色背景，鼠尾草绿和陶土橙色几何图形，极简设计，留白充足，简洁的文字",
+      "font": "Microsoft YaHei", "title_size": 28, "body_size": 22,
+      "stroke_min": 2.0, "stroke_max": 4.0, "decoration": "none",
+      "palette": {"background":"#F2EAE0","foreground":"#3C4039","muted":"#777A6C","primary":"#9B6D49","secondary":"#82917B","tertiary":"#B2A98B","positive":"#70876D","negative":"#B87568","grid":"#DCD7CA"}
+    }
+  ]
+}

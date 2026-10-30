@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "qualities": [
+    {"label":"快速 480p","width":854,"height":480,"fps":15,"manim":"l"},
+    {"label":"标准 720p","width":1280,"height":720,"fps":30,"manim":"m"},
+    {"label":"高清 1080p","width":1920,"height":1080,"fps":60,"manim":"h"}
+  ]
+}
