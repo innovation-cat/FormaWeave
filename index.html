@@ -41,7 +41,7 @@
         <div class="settings-section-title">计算服务<span id="connection-status" class="subtle">未连接</span></div>
         <label>后端地址<input name="endpoint" type="url" placeholder="http://127.0.0.1:8765" required></label>
         <label>连接令牌 <span class="optional">本地同源访问自动配对</span><div class="input-action"><input name="token" type="password" autocomplete="off" placeholder="远程网页需粘贴本机连接令牌"><button type="button" data-action="copy-token" title="复制令牌"><span data-icon="copy"></span></button></div></label>
-        <p class="field-help">先双击 <code>Start-Code2X.cmd</code>。远程网页的令牌来自本机工作台或 <code>data/access-token.txt</code>；服务重启后需重新配对。</p>
+        <p class="field-help">先双击 <code>Start-Code2X.cmd</code>。本机页面自动连接；GitHub 网页还需从本机工作台复制连接令牌并配对。令牌也可在 <code>data/access-token.txt</code> 中读取，服务重启或新开网页后可能需要重新填写。</p>
         <button type="button" class="secondary-button full" data-action="connect"><span data-icon="link"></span>连接计算服务</button>
         <div id="runtime-checks" class="runtime-checks"></div><hr>
         <div class="settings-section-title">模型服务<span class="subtle">密钥仅用于本次会话</span></div>

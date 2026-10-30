@@ -1,6 +1,6 @@
 import {icon, hydrateIcons} from './icons.js';
 import {modules, styles, qualities, templates, stages, statusNames} from './modules.js';
-import {API, readStorage, writeStorage, backendCompatibilityError} from './api.js';
+import {API, readStorage, writeStorage, backendCompatibilityError, connectionProblem} from './api.js';
 import {stylePreview} from './style-preview.js';
 
 const $ = selector => document.querySelector(selector);
@@ -14,11 +14,12 @@ if ('max_tokens' in saved && !('repair_max_tokens' in saved)) config.repair_max_
 const isLocal = ['127.0.0.1','localhost'].includes(location.hostname);
 const api = new API(readStorage('code2x.endpoint', isLocal ? location.origin : 'http://127.0.0.1:8765'), readStorage('code2x.token','',sessionStorage));
 const state = {
-  view:'studio', module:'video', connected:false, health:null, config, backendError:'',
+  view:'studio', module:'video', connected:false, health:null, config, backendError:'', connectionError:'', connectionKind:'',
   draft:{topic:'',duration:1,quality:'快速 480p',language:'中文',narration_language:'zh-CN',burn_subtitles:true,styleId:'math',...readStorage('code2x.draft',{})},
   jobs:[], active:null, tab:'preview', logLines:[], cursor:0, previewKey:'', recentKey:'', filter:'all', query:'', submitting:false, polling:false,
 };
 let sourceRequest = 0;
+let connectionAttempt=null, connectionRevision=0, lastConnectAt=0;
 if (!styles.some(style=>style.id===state.draft.styleId)) state.draft.styleId='math';
 const terminal = job => ['completed','failed','cancelled'].includes(job?.status);
 const lostNarrationConfig = job => job?.error === "'narration_language'";
@@ -36,29 +37,38 @@ function toast(message, error=false) {
 function persistDraft() { writeStorage('code2x.draft',state.draft); }
 function setConnection(connected, message) {
   state.connected=connected;
-  $('#sidebar-status').textContent=connected?'本地引擎已连接':(state.health?'等待服务配对':'本地服务未连接');
-  $('#sidebar-detail').textContent=connected?'隔离运行 · 准备就绪':'点击配置计算服务';
+  state.connectionError=connected?'':message||'计算服务尚未连接。';
+  $('#sidebar-status').textContent=connected?'本地引擎已连接':state.connectionKind==='pairing'?'等待服务配对':state.connectionKind==='restart'?'服务需要重启':'本地服务未连接';
+  $('#sidebar-detail').textContent=connected?'隔离运行 · 准备就绪':state.connectionKind==='pairing'?'服务已启动 · 请填写连接令牌':state.connectionKind==='offline'?'检查服务地址 · 连接后自动恢复':'点击配置计算服务';
   $('#connection-status').textContent=message || (connected?'已连接':'未连接');
   for (const el of [$('#sidebar-dot'),$('#header-dot')]) el.classList.toggle('online',connected);
 }
 async function connect(notify=false) {
+  const key=api.endpoint+'\n'+api.token;
+  if(!connectionAttempt || connectionAttempt.key!==key) {
+    const client=new API(api.endpoint,api.token);
+    const revision=connectionRevision;
+    lastConnectAt=Date.now();
+    const attempt={key,promise:null};
+    connectionAttempt=attempt;
+    attempt.promise=establishConnection(client,revision).finally(()=>{if(connectionAttempt===attempt)connectionAttempt=null;});
+  }
+  const connected=await connectionAttempt.promise;
+  if(notify)toast(connected?'计算服务已连接，可以开始创作。':state.connectionError,!connected);
+  return connected;
+}
+async function establishConnection(client,revision) {
   try {
-    const health=await api.request('/api/health',{publicRequest:true,timeout:4000});
-    if (health.service!=='code2x') throw new Error('此地址不是 Code2X 计算服务。');
+    const {health,jobs}=await client.connect({pageOrigin:location.origin});
+    if(revision!==connectionRevision)return false;
     state.health=health;
-    state.backendError=backendCompatibilityError(health);
-    if(state.backendError) throw new Error(state.backendError);
+    state.backendError='';state.connectionKind='';api.token=client.token;
     for (const descriptor of health.modules || []) {
       const known = modules.find(module => module.id === descriptor.id);
       if (known) Object.assign(known, descriptor);
     }
-    if (isLocal && ['127.0.0.1','localhost'].includes(new URL(api.endpoint).hostname)) {
-      const session=await api.request('/api/local-session',{publicRequest:true,timeout:4000});
-      api.token=session.token;
-    }
     writeStorage('code2x.endpoint',api.endpoint); writeStorage('code2x.token',api.token,sessionStorage);
-    const data=await api.request('/api/jobs',{timeout:4000}); state.jobs=data.jobs;
-    if (!health.runtime.ready) throw new Error('环境未就绪，请运行 Setup-Code2X.cmd。');
+    state.jobs=jobs;
     setConnection(true);
     if ($('#settings-dialog').open) $('#settings-form').elements.token.value=api.token;
     $('#runtime-checks').innerHTML=Object.entries(health.runtime.checks).map(([name,ok])=>`<span>${icon(ok?'check':'close')}${esc(name)}</span>`).join('');
@@ -67,11 +77,12 @@ async function connect(notify=false) {
       const running=state.jobs.find(j=>!terminal(j));
       if (running) await selectJob(running.id,false);
     }
-    if (notify) toast('计算服务已连接，可以开始创作。');
     return true;
   } catch(error) {
+    if(revision!==connectionRevision)return false;
+    state.health=error.health||null;state.connectionKind=error.kind;
+    state.backendError=error.kind==='restart'?error.message:'';
     setConnection(false,error.message);
-    if (notify) toast(error.message,true);
     return false;
   }
 }
@@ -250,7 +261,8 @@ function collectSettings() {
   return result;
 }
 function configureEndpoint(endpoint, token) {
-  const previous=api.endpoint;api.configure(endpoint,token);
+  const previous=api.endpoint,previousToken=api.token;api.configure(endpoint,token);
+  if(previous!==api.endpoint||previousToken!==api.token){connectionRevision++;state.connectionKind='';state.backendError='';setConnection(false,'正在检查计算服务…');}
   if(previous!==api.endpoint){state.jobs=[];state.active=null;state.health=null;state.logLines=[];state.cursor=0;}
 }
 async function connectFromForm() {
@@ -263,10 +275,11 @@ async function saveSettings(event) {
   state.config=collectSettings();
   writeStorage('code2x.preferences',Object.fromEntries(preferenceKeys.map(k=>[k,state.config[k]])));
   writeStorage('code2x.endpoint',api.endpoint);writeStorage('code2x.token',api.token,sessionStorage);
-  await connect(false);$('#settings-dialog').close();toast('设置已保存。API Key 仅在当前页面会话中有效。');
+  if(await connect(false)){$('#settings-dialog').close();toast('设置已保存。API Key 仅在当前页面会话中有效。');}
+  else toast(state.connectionError,true);
 }
 async function modelAction(action, button) {
-  if(!state.connected){toast('请先连接计算服务。',true);return;}
+  if(!state.connected&&!await connect(false)){openSettings();toast(state.connectionError,true);return;}
   const data=collectSettings(); if(!data.api_key){toast('请先填写 API Key。',true);return;}
   button.disabled=true;$('#model-status').textContent=action==='models'?'正在获取模型列表…':'正在进行一次小额模型调用…';
   try {
@@ -277,14 +290,14 @@ async function modelAction(action, button) {
 }
 async function generate(demo=false) {
   if(state.submitting)return;
-  if(!state.connected){openSettings();toast(state.backendError||'请先启动并连接本地计算服务。',true);return;}
-  const form=$('#create-form');
-  if(form){state.draft.duration=Number(form.elements.duration.value);state.draft.quality=form.elements.quality.value;persistDraft();}
-  if(!demo&&!state.draft.topic.trim()){$('#topic')?.focus();toast('写下你的想法，让创作开始。');return;}
-  if(!demo&&!state.config.api_key){openSettings();toast('请先填写模型 API Key 并保存到本次会话。');return;}
   state.submitting=true;
-  const button=$('#generate-button');if(button){button.disabled=true;button.innerHTML=`${icon('refresh','loading-spinner')}正在创建任务…`;}
+  const button=$('#generate-button');if(button){button.disabled=true;button.innerHTML=`${icon('refresh','loading-spinner')}${state.connected?'正在创建任务…':'正在连接计算服务…'}`;}
   try {
+    if(!state.connected&&!await connect(false)){openSettings();toast(state.connectionError,true);return;}
+    const form=$('#create-form');
+    if(form){state.draft.duration=Number(form.elements.duration.value);state.draft.quality=form.elements.quality.value;persistDraft();}
+    if(!demo&&!state.draft.topic.trim()){$('#topic')?.focus();toast('写下你的想法，让创作开始。');return;}
+    if(!demo&&!state.config.api_key){openSettings();toast('请先填写模型 API Key 并保存到本次会话。');return;}
     // Recheck the running process immediately before enqueueing; code can change after the page connects.
     const health=await api.request('/api/health',{publicRequest:true,timeout:4000});
     state.backendError=backendCompatibilityError(health);
@@ -295,7 +308,9 @@ async function generate(demo=false) {
   } finally {state.submitting=false;if($('#generate-button')){$('#generate-button').disabled=false;$('#generate-button').innerHTML=`${icon('play')}生成我的视频<span class="shortcut">Ctrl ↵</span>`;}}
 }
 async function refresh() {
-  if(!state.connected||state.polling)return;state.polling=true;
+  if(state.polling)return;
+  if(!state.connected){if(!connectionAttempt&&Date.now()-lastConnectAt>=10000&&['','offline'].includes(state.connectionKind))await connect(false);return;}
+  state.polling=true;
   try {
     const data=await api.request('/api/jobs');const oldJobs=state.jobs;state.jobs=data.jobs;
     for(const job of state.jobs){const old=oldJobs.find(j=>j.id===job.id);if(old&&!terminal(old)&&terminal(job))toast(`${job.config.demo?'离线测试':job.title.slice(0,18)}${job.status==='completed'?'已完成':' · '+statusNames[job.status]}`,job.status==='failed');}
@@ -307,7 +322,8 @@ async function refresh() {
     }
     updateRecent(); if(state.view==='projects')updateProjectList();
   } catch(error) {
-    setConnection(false,error.message);toast(error.message,true);
+    const problem=connectionProblem(error,{health:state.health,token:api.token});
+    state.connectionKind=problem.kind;setConnection(false,problem.message);toast(problem.message,true);
   } finally {state.polling=false;}
 }
 function download(url) {const a=document.createElement('a');a.href=url;a.download='';document.body.append(a);a.click();a.remove();}
