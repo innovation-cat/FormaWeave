@@ -1,20 +1,10 @@
-# FormaWeave · 织象
+# FormaWeave — 已停用 / Deprecated
 
-[打开在线工作台](https://innovation-cat.github.io/FormaWeave/)
+项目已迁移到 **Genesis**。本仓库仅作为历史归档，不再部署 GitHub Pages。
 
-以代码构建，以模型生成，让想象成形。
+- [打开 Genesis 工作台](https://innovation-cat.github.io/Genesis/)
+- [Genesis 公开前端仓库](https://github.com/innovation-cat/Genesis)
 
-本仓库只保存 FormaWeave 的静态网页和 GitHub Pages 部署配置，使用独立的提交历史。当前界面支持 Code2Video / Manim 视频创作；其他引擎、生成式模型与世界模型属于后续规划。
+在本机完整项目中运行 `Start-Genesis.cmd`（原 `Start-Code2X.cmd` 仍可用），再从在线工作台的连接设置配对本地计算服务。生成任务在本机执行，无需云计算服务器。
 
-## 使用
-
-1. 在已安装本地引擎的电脑上运行 `Start-Code2X.cmd`。
-2. 打开在线工作台，在「连接设置」中填写 `http://127.0.0.1:8765`。
-3. 在本机工作台的连接设置中复制令牌，粘贴到在线工作台并点击「连接计算服务」；令牌也可以在本机 `data/access-token.txt` 中读取。服务已启动但在线网页尚未配对时，仍需要此步骤。重启服务会更新令牌，新标签页也可能需要重新填写。
-4. 配置模型服务后即可创作。中英文配音、画质、目标时长和视觉风格按所选设置执行。
-
-网页运行在浏览器中，计算任务由本地引擎执行。本仓库不包含 Python 后端、Agent、提示词模板、运行环境、模型密钥或生成作品，也不提供这些文件的公开下载。前端 HTML / CSS / JavaScript 是正常公开的网页资源。
-
-## 发布
-
-`main` 分支的网页更新通过 GitHub Actions 自动发布。工作流会检查仓库文件列表，仅接受网页资源、本文档和部署配置。部署版本可在站点的 `deployment.json` 查看。
+This repository is archived. Use Genesis for the current static UI and GitHub Pages deployment.
